@@ -1,5 +1,7 @@
 # Identity & Auth
 
+![CI](https://github.com/ai-crypto-onramp/identity-auth/actions/workflows/ci.yml/badge.svg)
+
 User accounts, sessions, MFA, API keys for B2B partners, RBAC for the crypto on-ramp.
 
 ## Overview / Responsibilities
