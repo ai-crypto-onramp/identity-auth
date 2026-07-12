@@ -46,6 +46,8 @@ func newServer() http.Handler {
 func (a *API) Handler() http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/healthz", healthzHandler)
+	mux.HandleFunc("/readyz", readyzHandler(a))
+	mux.HandleFunc("/metrics", metricsHandler)
 
 	// v1 routes
 	mux.HandleFunc("/v1/users", a.routeUsers)
@@ -81,7 +83,7 @@ func (a *API) Handler() http.Handler {
 
 	mux.HandleFunc("/v1/admin/unlock", a.requireAuth(a.adminUnlock))
 
-	return withMiddleware(mux)
+	return withMiddleware(loggingMiddleware(mux))
 }
 
 // withMiddleware wraps the mux with request_id + recovery middleware.
@@ -396,14 +398,18 @@ func (a *API) login(w http.ResponseWriter, r *http.Request) {
 	res, ev, err := a.store.Login(body.Email, body.Password, body.MFACode, a.cfg)
 	if err != nil {
 		if errors.Is(err, ErrAccountLocked) {
+			globalMetrics.lockouts.Add(1)
 			a.store.RecordAudit(&AuditEvent{
 				Type: "auth.lockout", SubjectID: a.store.UserByEmail(body.Email).ID,
 				Metadata: map[string]any{}, CreatedAt: time.Now(),
 			})
+		} else {
+			globalMetrics.loginFailures.Add(1)
 		}
 		failOnErr(w, r, err)
 		return
 	}
+	globalMetrics.loginTotal.Add(1)
 	a.store.RecordAudit(ev)
 	writeJSON(w, http.StatusOK, res)
 }
@@ -425,6 +431,7 @@ func (a *API) refreshSession(w http.ResponseWriter, r *http.Request) {
 		failOnErr(w, r, err)
 		return
 	}
+	globalMetrics.refreshTotal.Add(1)
 	a.store.RecordAudit(ev)
 	writeJSON(w, http.StatusOK, res)
 }
@@ -436,6 +443,7 @@ func (a *API) logout(w http.ResponseWriter, r *http.Request) {
 		failOnErr(w, r, err)
 		return
 	}
+	globalMetrics.logoutTotal.Add(1)
 	a.store.RecordAudit(ev)
 	w.WriteHeader(http.StatusNoContent)
 }

@@ -56,6 +56,7 @@ func (a *API) mfaEnroll(w http.ResponseWriter, r *http.Request) {
 		failOnErr(w, r, err)
 		return
 	}
+	globalMetrics.mfaEnroll.Add(1)
 	a.store.RecordAudit(ev)
 	writeJSON(w, http.StatusOK, res)
 }
@@ -76,9 +77,11 @@ func (a *API) mfaVerify(w http.ResponseWriter, r *http.Request) {
 	}
 	ev, err := a.store.VerifyMFA(uid, body.Code1, body.Code2)
 	if err != nil {
+		globalMetrics.mfaVerifyFail.Add(1)
 		failOnErr(w, r, err)
 		return
 	}
+	globalMetrics.mfaVerify.Add(1)
 	a.store.RecordAudit(ev)
 	writeJSON(w, http.StatusOK, map[string]any{"status": "confirmed"})
 }
@@ -198,6 +201,7 @@ func (a *API) createAPIKey(w http.ResponseWriter, r *http.Request) {
 		failOnErr(w, r, err)
 		return
 	}
+	globalMetrics.keyCreate.Add(1)
 	a.store.RecordAudit(ev)
 	writeJSON(w, http.StatusCreated, res)
 }
@@ -253,6 +257,7 @@ func (a *API) rotateAPIKey(w http.ResponseWriter, r *http.Request, id string) {
 		failOnErr(w, r, err)
 		return
 	}
+	globalMetrics.keyRotate.Add(1)
 	a.store.RecordAudit(ev)
 	writeJSON(w, http.StatusOK, res)
 }
@@ -263,6 +268,7 @@ func (a *API) revokeAPIKey(w http.ResponseWriter, r *http.Request, id string) {
 		failOnErr(w, r, err)
 		return
 	}
+	globalMetrics.keyRevoke.Add(1)
 	a.store.RecordAudit(ev)
 	w.WriteHeader(http.StatusNoContent)
 }
@@ -340,6 +346,11 @@ func (a *API) authz(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	res, ev := a.store.Authorize(body.Subject, body.Action, body.Resource)
+	if res.Allow {
+		globalMetrics.authzAllow.Add(1)
+	} else {
+		globalMetrics.authzDeny.Add(1)
+	}
 	if ev != nil {
 		a.store.RecordAudit(ev)
 	}
