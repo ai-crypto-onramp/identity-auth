@@ -11,7 +11,13 @@ func healthzHandler(w http.ResponseWriter, r *http.Request) {
 	_ = json.NewEncoder(w).Encode(map[string]string{"status": "ok"})
 }
 
+// newServer builds the HTTP handler with all routes registered.
+func newServer() http.Handler {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/healthz", healthzHandler)
+	return mux
+}
+
 func main() {
-	http.HandleFunc("/healthz", healthzHandler)
-	_ = http.ListenAndServe(":8080", nil)
+	_ = http.ListenAndServe(":8080", newServer())
 }
