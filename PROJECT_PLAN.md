@@ -12,26 +12,18 @@ landing first.
 **Goal:** Establish the PostgreSQL schema and migration tooling for all durable
 entities described in the README data model.
 
-> **Status:** Implemented as an in-memory persistence layer (`store.go`) backed
-> by maps and a single `sync.RWMutex`. All durable entities (users, sessions,
-> MFA factors, recovery codes, API keys, role bindings, password resets,
-> lockouts, audit events) are represented as typed structs and persisted in
-> thread-safe maps. Wiring a real Postgres backend is a follow-up once the
-> service is deployed; the in-memory store is sufficient for the reference
-> implementation and the full test suite.
-
 **Tasks:**
-- [x] Choose a migration tool (e.g. `golang-migrate`) and add it to `Makefile`/CI. _(in-memory store requires no migrations; struct definitions serve as the schema.)_
-- [x] Create `migrations/` directory with ordered up/down SQL files. _(N/A for in-memory store; schema is defined by Go structs in `store.go`.)_
-- [x] Add `users` table (id, email unique, password_hash, status enum, timestamps, closed_at). _(see `User` struct + `users`/`usersByEmail` maps.)_
-- [x] Add `sessions` table (id, user_id FK, refresh_token_hash, issuer, issued_at, last_seen_at, expires_at, revoked_at). _(see `Session` struct + `sessions`/`sessionsByRT` maps.)_
-- [x] Add `mfa_factors` and `mfa_recovery_codes` tables (secret_encrypted, confirmed, disabled_at, code_hash, used_at). _(see `MFAFactor` + `RecoveryCode` structs and maps.)_
-- [x] Add `api_keys` table (id, partner_id, prefix, key_hash, scopes jsonb, ip_allowlist, expires_at, revoked_at). _(see `APIKey` struct + `apiKeys`/`apiKeysByHash` maps.)_
-- [x] Add `roles` and `role_bindings` tables with subject_type/scope_type enums. _(see `rolePermissions` map in `rbac.go` + `RoleBinding` struct.)_
-- [x] Add `password_resets` table (token_hash, expires_at, used_at). _(see `PasswordReset` struct + `passwordResets`/`resetsByToken` maps.)_
-- [x] Seed predefined roles (`user`, `partner_admin`, `partner_api`, `support`, `compliance`, `ops`, `admin`) and the fixed permission enumeration. _(see `rolePermissions` in `rbac.go`.)_
-- [x] Add a Go-side `db` package with connection pooling (`pgx`/`database/sql`) and config from `DB_URL`. _(in-memory `store` in `store.go`; `ConfigFromEnv` in `config.go` reads env vars.)_
-- [x] Add column-level encryption helpers (TDE / envelope encryption) for `secret_encrypted`, `key_hash`, recovery code hashes. _(secrets hashed via salted HMAC-SHA256 in `crypto.go`; full envelope encryption is a Postgres-follow-up.)_
+- [x] Choose a migration tool (e.g. `golang-migrate`) and add it to `Makefile`/CI. _(embedded SQL migration runner in `db/db.go`; `make migrate-up`/`migrate-down` targets added.)_
+- [x] Create `migrations/` directory with ordered up/down SQL files. _(see `db/migrations/0001_init.up.sql` + `.down.sql`.)_
+- [x] Add `users` table (id, email unique, password_hash, status enum, timestamps, closed_at).
+- [x] Add `sessions` table (id, user_id FK, refresh_token_hash, issuer, issued_at, last_seen_at, expires_at, revoked_at).
+- [x] Add `mfa_factors` and `mfa_recovery_codes` tables (secret_encrypted, confirmed, disabled_at, code_hash, used_at).
+- [x] Add `api_keys` table (id, partner_id, prefix, key_hash, scopes jsonb, ip_allowlist, expires_at, revoked_at).
+- [x] Add `roles` and `role_bindings` tables with subject_type/scope_type enums.
+- [x] Add `password_resets` table (token_hash, expires_at, used_at).
+- [x] Seed predefined roles (`user`, `partner_admin`, `partner_api`, `support`, `compliance`, `ops`, `admin`) and the fixed permission enumeration. _(seeded via `INSERT ... ON CONFLICT DO NOTHING` in the up migration.)_
+- [x] Add a Go-side `db` package with connection pooling (`pgx`/`database/sql`) and config from `DB_URL`. _(see `db/db.go` — pgx pool with configurable max/min conns, timeouts; `cmd/migrate` CLI.)_
+- [x] Add column-level encryption helpers (TDE / envelope encryption) for `secret_encrypted`, `key_hash`, recovery code hashes. _(AES-256-GCM envelope encryption in `db/crypto.go`; key from `ENCRYPTION_KEY`/`ENCRYPTION_PASSPHRASE` env vars.)_
 
 **Acceptance criteria:**
 - `make migrate-up` and `make migrate-down` apply cleanly against an empty Postgres instance.
