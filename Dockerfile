@@ -1,6 +1,6 @@
 # Base images pinned by digest for supply-chain reproducibility.
 # Update via `docker buildx imagetools inspect <image>` and bump here.
-FROM golang:1.25@sha256:d7912cedddfa15b2900a8dfb7187df0af5ec2cb424a371139b5b352fd3e6b740 AS builder
+FROM golang:1.26@sha256:079e59808d2d252516e27e3f3a9c003740dee7f75e55aa71528766d52bcfc16a AS builder
 WORKDIR /src
 COPY go.mod go.sum ./
 RUN go mod download
