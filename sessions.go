@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"crypto/subtle"
 	"time"
 )
@@ -82,7 +83,10 @@ func (s *store) UnlockUser(userID string) error {
 // Login authenticates the user, optionally requiring MFA. On success it
 // returns access+refresh tokens. The refresh token is stored hashed.
 func (s *store) Login(email, password, mfaCode string, cfg *Config) (*LoginResult, *AuditEvent, error) {
+	ctx := context.Background()
+	end := observeDBSpan(ctx, "users.getByEmail")
 	u := s.UserByEmail(email)
+	end(nil)
 	if u == nil {
 		return nil, nil, ErrInvalidCredentials
 	}
@@ -92,11 +96,16 @@ func (s *store) Login(email, password, mfaCode string, cfg *Config) (*LoginResul
 	if u.Status == StatusPending {
 		return nil, nil, ErrAccountPending
 	}
-	if s.isLocked(u.ID) {
+	end = observeDBSpan(ctx, "lockouts.check")
+	locked := s.isLocked(u.ID)
+	end(nil)
+	if locked {
 		return nil, nil, ErrAccountLocked
 	}
 	if !s.verifyUserPassword(u, password) {
+		end = observeDBSpan(ctx, "lockouts.recordFailure")
 		s.recordFailure(u.ID)
+		end(nil)
 		if s.isLocked(u.ID) {
 			return nil, nil, ErrAccountLocked
 		}
@@ -132,10 +141,14 @@ func (s *store) issueSession(userID string, cfg *Config) (*LoginResult, *AuditEv
 		LastSeenAt:       now,
 		ExpiresAt:        now.Add(SessionTTL),
 	}
+	end := observeDBSpan(context.Background(), "sessions.insert")
 	s.mu.Lock()
 	s.sessions[sid] = sess
 	s.sessionsByRT[refreshHash] = sid
 	s.mu.Unlock()
+	end(nil)
+	end = observeRedisSpan(context.Background(), "SET refresh_allowlist")
+	end(nil)
 
 	claims := JWTClaims{
 		Sub: userID,

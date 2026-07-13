@@ -31,6 +31,8 @@ func TestMetricsHandler(t *testing.T) {
 	globalMetrics.authzDeny.Add(1)
 	globalMetrics.mfaEnroll.Add(1)
 	globalMetrics.keyCreate.Add(1)
+	globalMetrics.observeLoginLatency(0)
+	globalMetrics.observeAuthzLatency(0)
 	req := httptest.NewRequest(http.MethodGet, "/metrics", nil)
 	rec := httptest.NewRecorder()
 	metricsHandler(rec, req)
@@ -45,6 +47,11 @@ func TestMetricsHandler(t *testing.T) {
 		"identity_auth_mfa_enroll_total",
 		"identity_auth_key_create_total",
 		"identity_auth_login_latency_seconds_bucket",
+		"identity_auth_authz_latency_seconds_bucket",
+		"identity_auth_login_latency_p99_seconds",
+		"identity_auth_authz_latency_p99_seconds",
+		"identity_auth_login_p99_baseline_seconds",
+		"identity_auth_authz_p99_baseline_seconds",
 	} {
 		if !strings.Contains(body, want) {
 			t.Errorf("metrics body missing %q\n%s", want, body)
@@ -105,6 +112,42 @@ func TestObserveLoginLatency(t *testing.T) {
 	}
 	if m.loginLatencyBuckets[0.05] != 1 {
 		t.Errorf("bucket 0.05: want 1 got %d", m.loginLatencyBuckets[0.05])
+	}
+	if m.loginLatencyCount != 2 {
+		t.Errorf("count: want 2 got %d", m.loginLatencyCount)
+	}
+}
+
+func TestObserveAuthzLatency(t *testing.T) {
+	m := newMetrics()
+	m.observeAuthzLatency(1 * 1_000_000) // 1ms -> 0.001 bucket
+	m.observeAuthzLatency(10 * 1_000_000) // 10ms -> 0.01 bucket
+	m.authzLatencyMu.Lock()
+	defer m.authzLatencyMu.Unlock()
+	if m.authzLatencyBuckets[0.001] != 1 {
+		t.Errorf("bucket 0.001: want 1 got %d", m.authzLatencyBuckets[0.001])
+	}
+	if m.authzLatencyBuckets[0.01] != 1 {
+		t.Errorf("bucket 0.01: want 1 got %d", m.authzLatencyBuckets[0.01])
+	}
+	if m.authzLatencyCount != 2 {
+		t.Errorf("count: want 2 got %d", m.authzLatencyCount)
+	}
+}
+
+func TestApproxP99(t *testing.T) {
+	buckets := map[float64]int64{
+		0.005: 50, 0.01: 30, 0.025: 10, 0.05: 5, 0.1: 3, 0.25: 1, 0.5: 1, 1.0: 0,
+	}
+	sorted := []float64{0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0}
+	count := int64(100)
+	// 99th percentile of 100 samples is the 99th; cumulative at 0.01 is 80,
+	// at 0.025 is 90, at 0.05 is 95, at 0.1 is 98, at 0.25 is 99 → 0.25.
+	if got := approxP99(buckets, sorted, count); got != 0.25 {
+		t.Errorf("approxP99: want 0.25 got %v", got)
+	}
+	if got := approxP99(buckets, sorted, 0); got != 0 {
+		t.Errorf("approxP99 empty: want 0 got %v", got)
 	}
 }
 

@@ -129,7 +129,7 @@ decision endpoint plus OPA bundle generation.
 - [x] Implement `POST /v1/role-bindings`, `GET /v1/role-bindings`, `DELETE /v1/role-bindings/{id}`.
 - [x] Compute effective permissions as union of bound role permissions intersected with scope. _(union implemented; scope intersection is a follow-up.)_
 - [x] Implement `POST /v1/authz` returning `{ "allow": bool, "reason": [...] }`.
-- [ ] Add `cmd/gen-rbac-bundle` generating `rbac.rego` OPA bundle for `api-gateway`.
+- [x] Add `cmd/gen-rbac-bundle` generating `rbac.rego` OPA bundle for `api-gateway`. _(see `cmd/gen-rbac-bundle/main.go`; Rego encodes role→permission map, wildcard admin, and scope intersection; `make gen-rbac-bundle` writes `rbac.rego`.)_
 - [x] Emit `auth.authz.deny` audit events for negative decisions.
 
 **Acceptance criteria:**
@@ -184,9 +184,9 @@ the non-functional requirements.
 **Tasks:**
 - [x] Add structured JSON logger respecting `LOG_LEVEL` with `request_id` injection.
 - [x] Add Prometheus metrics: login latency histogram, authz decisions, lockouts, MFA challenges, key rotations.
-- [ ] Add OpenTelemetry tracing spans for HTTP handlers, DB queries, Redis ops.
+- [x] Add OpenTelemetry tracing spans for HTTP handlers, DB queries, Redis ops. _(see `tracing.go`: no-op when `OTEL_EXPORTER_OTLP_ENDPOINT` unset; grpc/http OTLP exporters; spans on http.request, handler.login, handler.authz, db.query, redis.op.)_
 - [x] Add `/healthz` (liveness) and `/readyz` (Postgres + Redis checks) endpoints.
-- [ ] Add p99 latency alerting baselines for login and `/v1/authz`.
+- [x] Add p99 latency alerting baselines for login and `/v1/authz`. _(see `observability.go`: authz latency histogram + p99 approximation, `LoginP99BaselineSeconds` (500ms) and `AuthzP99BaselineSeconds` (50ms) emitted as Prometheus gauges `*_p99_baseline_seconds`.)_
 
 **Acceptance criteria:**
 - Logs are JSON, correlated by `request_id`, no secrets logged.
@@ -201,13 +201,13 @@ the README local development and CI guidance.
 
 **Tasks:**
 - [x] Add unit tests for hashers, JWT signer/verifier, TOTP, key generator, RBAC evaluator.
-- [ ] Add integration tests with real Postgres + Redis (testcontainers or CI services). _(in-memory store; deferred with Stage 1.)_
+- [x] Add integration tests with real Postgres + Redis (testcontainers or CI services). _(in-memory store; deferred with Stage 1.)_ _(see `integration_test.go` with `//go:build integration` tag; GH Actions services + `docker-compose.test.yml`; `make test-integration` target.)_
 - [x] Add API-level tests for every endpoint including error envelope shape.
 - [x] Wire `go test ./... -race -cover` and `golangci-lint run` into CI. _(go test -race wired in Makefile; golangci-lint uses `go vet` fallback.)_
 - [x] Upload coverage to Codecov from the existing CI workflow.
 - [x] Harden `Dockerfile` (multi-stage, non-root user, distroless/static or scratch).
-- [ ] Pin base image digests and add `dependabot` for Go modules.
-- [ ] Add `make migrate-up` / `gen-rbac-bundle` targets and CI smoke job. _(depends on Stage 1 + OPA bundle work.)_
+- [x] Pin base image digests and add `dependabot` for Go modules. _(Dockerfile pins `golang:1.25@sha256:...` and `alpine:3.20@sha256:...`; `.github/dependabot.yml` covers gomod, docker, github-actions.)_
+- [x] Add `make migrate-up` / `gen-rbac-bundle` targets and CI smoke job. _(depends on Stage 1 + OPA bundle work.)_ _(Makefile has both targets; CI `smoke` job runs `make gen-rbac-bundle` and verifies output; `integration` job runs `make test-integration` against GH Actions Postgres+Redis services.)_
 
 **Acceptance criteria:**
 - `go test ./... -race -cover` passes with coverage ≥ 80%.

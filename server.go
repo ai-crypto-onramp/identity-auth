@@ -83,7 +83,7 @@ func (a *API) Handler() http.Handler {
 
 	mux.HandleFunc("/v1/admin/unlock", a.requireAuth(a.adminUnlock))
 
-	return withMiddleware(loggingMiddleware(mux))
+	return withMiddleware(tracingMiddleware(loggingMiddleware(mux)))
 }
 
 // withMiddleware wraps the mux with request_id + recovery middleware.
@@ -386,6 +386,8 @@ func (a *API) routeSessions(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *API) login(w http.ResponseWriter, r *http.Request) {
+	ctx, end := startSpan(r.Context(), "handler.login")
+	defer end(nil)
 	var body struct {
 		Email    string `json:"email"`
 		Password string `json:"password"`
@@ -406,12 +408,14 @@ func (a *API) login(w http.ResponseWriter, r *http.Request) {
 		} else {
 			globalMetrics.loginFailures.Add(1)
 		}
+		end(err)
 		failOnErr(w, r, err)
 		return
 	}
 	globalMetrics.loginTotal.Add(1)
 	a.store.RecordAudit(ev)
 	writeJSON(w, http.StatusOK, res)
+	_ = ctx
 }
 
 func (a *API) refreshSession(w http.ResponseWriter, r *http.Request) {

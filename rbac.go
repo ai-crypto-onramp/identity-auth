@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"sort"
 	"time"
 )
@@ -129,7 +130,9 @@ type AuthzResult struct {
 // It uses role bindings for the subject; the action must be present in the
 // union of bound roles' permissions (or a role with wildcard "*").
 func (s *store) Authorize(subjectID, action, resource string) (AuthzResult, *AuditEvent) {
+	end := observeDBSpan(context.Background(), "bindings.forSubject")
 	bindings := s.BindingsForSubject(subjectID)
+	end(nil)
 	reason := make([]string, 0)
 	allowed := false
 	for _, b := range bindings {

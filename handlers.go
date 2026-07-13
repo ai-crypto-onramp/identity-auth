@@ -1,9 +1,12 @@
 package main
 
 import (
+	"fmt"
 	"net/http"
 	"strings"
 	"time"
+
+	"go.opentelemetry.io/otel/attribute"
 )
 
 // ---------------------------------------------------------------------------
@@ -345,16 +348,26 @@ func (a *API) authz(w http.ResponseWriter, r *http.Request) {
 		writeError(w, r, http.StatusBadRequest, "bad_request", err.Error())
 		return
 	}
+	ctx, end := startSpan(r.Context(), "handler.authz",
+		attribute.String("authz.subject", body.Subject),
+		attribute.String("authz.action", body.Action),
+		attribute.String("authz.resource", body.Resource),
+	)
+	defer end(nil)
+	start := time.Now()
 	res, ev := a.store.Authorize(body.Subject, body.Action, body.Resource)
+	globalMetrics.observeAuthzLatency(time.Since(start))
 	if res.Allow {
 		globalMetrics.authzAllow.Add(1)
 	} else {
 		globalMetrics.authzDeny.Add(1)
+		end(fmt.Errorf("authz deny"))
 	}
 	if ev != nil {
 		a.store.RecordAudit(ev)
 	}
 	writeJSON(w, http.StatusOK, res)
+	_ = ctx
 }
 
 // ---------------------------------------------------------------------------

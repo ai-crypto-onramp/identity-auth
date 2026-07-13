@@ -34,7 +34,22 @@ type metrics struct {
 	requestsTotal        atomic.Int64
 	loginLatencyMu       sync.Mutex
 	loginLatencyBuckets  map[float64]int64
+	loginLatencyCount    int64
+	loginLatencySum      float64
+	authzLatencyMu       sync.Mutex
+	authzLatencyBuckets  map[float64]int64
+	authzLatencyCount    int64
+	authzLatencySum      float64
 }
+
+// Alerting baselines: p99 latency thresholds (in seconds) for the two
+// critical paths. These are documented as the SLO alert firing thresholds
+// for the identity-auth service and are emitted as a Prometheus gauge so
+// alert rules can compare p99 against them.
+const (
+	LoginP99BaselineSeconds  = 0.5  // alert when p99 login latency > 500ms
+	AuthzP99BaselineSeconds  = 0.05 // alert when p99 /v1/authz latency > 50ms
+)
 
 var globalMetrics = newMetrics()
 
@@ -42,6 +57,9 @@ func newMetrics() *metrics {
 	return &metrics{
 		loginLatencyBuckets: map[float64]int64{
 			0.005: 0, 0.01: 0, 0.025: 0, 0.05: 0, 0.1: 0, 0.25: 0, 0.5: 0, 1.0: 0,
+		},
+		authzLatencyBuckets: map[float64]int64{
+			0.001: 0, 0.005: 0, 0.01: 0, 0.025: 0, 0.05: 0, 0.1: 0, 0.25: 0, 0.5: 0,
 		},
 	}
 }
@@ -51,6 +69,8 @@ func (m *metrics) observeLoginLatency(d time.Duration) {
 	secs := d.Seconds()
 	m.loginLatencyMu.Lock()
 	defer m.loginLatencyMu.Unlock()
+	m.loginLatencyCount++
+	m.loginLatencySum += secs
 	for _, upper := range latencyBucketsSorted {
 		if secs <= upper {
 			m.loginLatencyBuckets[upper]++
@@ -59,8 +79,45 @@ func (m *metrics) observeLoginLatency(d time.Duration) {
 	}
 }
 
+// observeAuthzLatency records a /v1/authz latency in seconds.
+func (m *metrics) observeAuthzLatency(d time.Duration) {
+	secs := d.Seconds()
+	m.authzLatencyMu.Lock()
+	defer m.authzLatencyMu.Unlock()
+	m.authzLatencyCount++
+	m.authzLatencySum += secs
+	for _, upper := range authzBucketsSorted {
+		if secs <= upper {
+			m.authzLatencyBuckets[upper]++
+			return
+		}
+	}
+}
+
 // latencyBucketsSorted is the sorted list of bucket upper bounds.
 var latencyBucketsSorted = []float64{0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0}
+
+// authzBucketsSorted is the sorted list of authz latency bucket upper bounds.
+var authzBucketsSorted = []float64{0.001, 0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5}
+
+// approxP99 estimates the p99 latency from bucket counts, given the sorted
+// bucket upper bounds and total count. It returns the upper bound of the
+// bucket containing the 99th percentile sample. When there are no samples it
+// returns 0.
+func approxP99(buckets map[float64]int64, sorted []float64, count int64) float64 {
+	if count == 0 {
+		return 0
+	}
+	target := float64(count) * 0.99
+	var cumul float64
+	for _, upper := range sorted {
+		cumul += float64(buckets[upper])
+		if cumul >= target {
+			return upper
+		}
+	}
+	return sorted[len(sorted)-1]
+}
 
 // logger is the structured JSON logger, configured once at init.
 var logger *slog.Logger
@@ -139,11 +196,32 @@ func metricsHandler(w http.ResponseWriter, r *http.Request) {
 	writeCounter(w, "identity_auth_key_rotate_total", m.keyRotate.Load())
 	writeCounter(w, "identity_auth_key_revoke_total", m.keyRevoke.Load())
 
+	// Login latency histogram.
 	m.loginLatencyMu.Lock()
-	for upper, count := range m.loginLatencyBuckets {
-		writeBucket(w, "identity_auth_login_latency_seconds_bucket", count, upper)
+	for _, upper := range latencyBucketsSorted {
+		writeBucket(w, "identity_auth_login_latency_seconds_bucket", m.loginLatencyBuckets[upper], upper)
 	}
+	writeGauge(w, "identity_auth_login_latency_seconds_count", m.loginLatencyCount)
+	writeGaugeFloat(w, "identity_auth_login_latency_seconds_sum", m.loginLatencySum)
+	writeGaugeFloat(w, "identity_auth_login_latency_p99_seconds",
+		approxP99(m.loginLatencyBuckets, latencyBucketsSorted, m.loginLatencyCount))
 	m.loginLatencyMu.Unlock()
+
+	// Authz latency histogram.
+	m.authzLatencyMu.Lock()
+	for _, upper := range authzBucketsSorted {
+		writeBucket(w, "identity_auth_authz_latency_seconds_bucket", m.authzLatencyBuckets[upper], upper)
+	}
+	writeGauge(w, "identity_auth_authz_latency_seconds_count", m.authzLatencyCount)
+	writeGaugeFloat(w, "identity_auth_authz_latency_seconds_sum", m.authzLatencySum)
+	writeGaugeFloat(w, "identity_auth_authz_latency_p99_seconds",
+		approxP99(m.authzLatencyBuckets, authzBucketsSorted, m.authzLatencyCount))
+	m.authzLatencyMu.Unlock()
+
+	// Alerting baseline gauges: alert rules compare the p99 metrics above
+	// against these thresholds.
+	writeGaugeFloat(w, "identity_auth_login_p99_baseline_seconds", LoginP99BaselineSeconds)
+	writeGaugeFloat(w, "identity_auth_authz_p99_baseline_seconds", AuthzP99BaselineSeconds)
 }
 
 func writeCounter(w http.ResponseWriter, name string, value int64) {
@@ -156,6 +234,20 @@ func writeCounter(w http.ResponseWriter, name string, value int64) {
 func writeBucket(w http.ResponseWriter, name string, value int64, upper float64) {
 	_, _ = w.Write([]byte(name + "{le=\"" + formatFloat(upper) + "\"} "))
 	_, _ = w.Write([]byte(int64ToStr(value)))
+	_, _ = w.Write([]byte("\n"))
+}
+
+func writeGauge(w http.ResponseWriter, name string, value int64) {
+	_, _ = w.Write([]byte("# TYPE " + name + " gauge\n"))
+	_, _ = w.Write([]byte(name + " "))
+	_, _ = w.Write([]byte(int64ToStr(value)))
+	_, _ = w.Write([]byte("\n"))
+}
+
+func writeGaugeFloat(w http.ResponseWriter, name string, value float64) {
+	_, _ = w.Write([]byte("# TYPE " + name + " gauge\n"))
+	_, _ = w.Write([]byte(name + " "))
+	_, _ = w.Write([]byte(formatFloat(value)))
 	_, _ = w.Write([]byte("\n"))
 }
 
@@ -235,10 +327,13 @@ func instrumentLogin(h http.HandlerFunc) http.HandlerFunc {
 	}
 }
 
-// instrumentAuthz wraps the authz handler, recording allow/deny counts.
+// instrumentAuthz wraps the authz handler, recording allow/deny counts and
+// latency.
 func instrumentAuthz(h http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		start := time.Now()
 		rw := &statusRecorder{ResponseWriter: w, status: http.StatusOK}
 		h(rw, r)
+		globalMetrics.observeAuthzLatency(time.Since(start))
 	}
 }
