@@ -308,32 +308,3 @@ func requestContextLogger(r *http.Request) *slog.Logger {
 	rid, _ := r.Context().Value(ctxRequestID).(string)
 	return logger.With("request_id", rid)
 }
-
-// instrumentLogin wraps a login handler, recording latency and counts.
-func instrumentLogin(h http.HandlerFunc) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		start := time.Now()
-		rw := &statusRecorder{ResponseWriter: w, status: http.StatusOK}
-		h(rw, r)
-		globalMetrics.observeLoginLatency(time.Since(start))
-		if rw.status == http.StatusOK {
-			globalMetrics.loginTotal.Add(1)
-		} else {
-			globalMetrics.loginFailures.Add(1)
-			if rw.status == 423 {
-				globalMetrics.lockouts.Add(1)
-			}
-		}
-	}
-}
-
-// instrumentAuthz wraps the authz handler, recording allow/deny counts and
-// latency.
-func instrumentAuthz(h http.HandlerFunc) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		start := time.Now()
-		rw := &statusRecorder{ResponseWriter: w, status: http.StatusOK}
-		h(rw, r)
-		globalMetrics.observeAuthzLatency(time.Since(start))
-	}
-}
