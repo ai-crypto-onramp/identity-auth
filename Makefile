@@ -1,7 +1,7 @@
-.PHONY: build test test-integration run lint cover docker-build docker-run migrate-up migrate-down gen-rbac-bundle clean
+.PHONY: build test test-integration run lint coverage docker-build docker-run migrate-up migrate-down gen-rbac-bundle clean
 
 build:
-	go build -o bin/server ./cmd/identity-auth
+	go build -o bin/identity-auth ./cmd/identity-auth
 
 test:
 	go test ./cmd/... ./internal/... -race -coverprofile=coverage.out -coverpkg=./cmd/...,./internal/...
@@ -15,7 +15,7 @@ run:
 lint:
 	golangci-lint run
 
-cover: test
+coverage: test
 	go tool cover -func=coverage.out | tail -1
 
 docker-build:
