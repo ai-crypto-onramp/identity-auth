@@ -8,7 +8,7 @@ COPY . .
 RUN CGO_ENABLED=0 GOOS=linux go build -o /server ./cmd/identity-auth && \
     CGO_ENABLED=0 GOOS=linux go build -o /migrate ./cmd/migrate
 
-FROM alpine:3.20@sha256:d9e853e87e55526f6b2917df91a2115c36dd7c696a35be12163d44e6e2a4b6bc
+FROM alpine:3.24@sha256:28bd5fe8b56d1bd048e5babf5b10710ebe0bae67db86916198a6eec434943f8b
 RUN apk add --no-cache wget && \
     addgroup -S app && adduser -S app -G app
 COPY --from=builder /server /server
