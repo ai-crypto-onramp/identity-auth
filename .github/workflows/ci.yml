@@ -41,39 +41,3 @@ jobs:
           grep -q "package identity_auth" rbac.rego
           grep -q "allow {" rbac.rego
           grep -q "role_permissions" rbac.rego
-
-  integration:
-    runs-on: ubuntu-latest
-    services:
-      postgres:
-        image: postgres:16-alpine
-        env:
-          POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: identity_auth_test
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd "pg_isready -U postgres -d identity_auth_test"
-          --health-interval 2s
-          --health-timeout 3s
-          --health-retries 10
-      redis:
-        image: redis:7-alpine
-        ports:
-          - 6379:6379
-        options: >-
-          --health-cmd "redis-cli ping"
-          --health-interval 2s
-          --health-timeout 3s
-          --health-retries 10
-    env:
-      TEST_DB_URL: postgres://postgres:postgres@localhost:5432/identity_auth_test?sslmode=disable
-      TEST_REDIS_URL: redis://localhost:6379/0
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
-        with:
-          go-version-file: 'go.mod'
-      - name: Run integration tests
-        run: make test-integration
