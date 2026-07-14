@@ -32,8 +32,8 @@ func (a *API) routeSessionsSub(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	uid := currentUserID(r)
-	sess := a.store.sessions[path]
-	if sess == nil || sess.UserID != uid {
+	sess, ok := a.store.SessionByID(path)
+	if !ok || sess.UserID != uid {
 		failOnErr(w, r, ErrSessionNotFound)
 		return
 	}

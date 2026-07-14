@@ -297,6 +297,18 @@ func (s *store) ListSessions(userID string) []*Session {
 	return out
 }
 
+// SessionByID returns the session by id and a presence flag. The session is
+// considered "found" if it exists and is not revoked.
+func (s *store) SessionByID(sid string) (*Session, bool) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	sess, ok := s.sessions[sid]
+	if !ok || sess == nil || sess.RevokedAt != nil {
+		return nil, false
+	}
+	return sess, true
+}
+
 // constantTimeEqual is a small helper exposing subtle.ConstantTimeCompare.
 func constantTimeEqual(a, b string) bool {
 	return subtle.ConstantTimeCompare([]byte(a), []byte(b)) == 1

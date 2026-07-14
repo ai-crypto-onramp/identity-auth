@@ -25,16 +25,44 @@ const (
 
 // API is the application server wiring store + config + handlers.
 type API struct {
-	store *store
+	store Store
 	cfg   *Config
 }
 
-// newAPI builds an API with a fresh in-memory store and the given config.
+// newAPI builds an API with the given config. When DB_URL is set it opens a
+// pgx pool, runs migrations, and uses the DB-backed store; otherwise it falls
+// back to the in-memory store.
 func newAPI(cfg *Config) *API {
 	if cfg == nil {
 		cfg = DefaultConfig()
 	}
-	return &API{store: newStore(), cfg: cfg}
+	st, err := newStoreFromEnv()
+	if err != nil {
+		logger.Error("db store init failed; using in-memory", "err", err)
+		st = newStore()
+	}
+	return &API{store: st, cfg: cfg}
+}
+
+// newStoreFromEnv selects the store backend based on DB_URL. With no DB_URL it
+// returns the in-memory store; with one it opens a pool, migrates, and returns
+// the DB-backed store.
+func newStoreFromEnv() (Store, error) {
+	dsn := dbDSN()
+	if dsn == "" {
+		return newStore(), nil
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+	pool, err := openPool(ctx, dsn)
+	if err != nil {
+		return nil, err
+	}
+	if _, err := migrateUp(ctx, pool); err != nil {
+		pool.Close()
+		return nil, err
+	}
+	return newDBStore(pool)
 }
 
 // newServer builds the HTTP handler with all routes registered (legacy entry).
@@ -209,7 +237,7 @@ func (a *API) requireAuth(h http.HandlerFunc) http.HandlerFunc {
 			return
 		}
 		// Ensure session is still active.
-		if sess := a.store.sessions[claims.Sid]; sess == nil || sess.RevokedAt != nil {
+		if sess, ok := a.store.SessionByID(claims.Sid); !ok || sess == nil {
 			writeError(w, r, http.StatusUnauthorized, "unauthorized", "session not found")
 			return
 		}
