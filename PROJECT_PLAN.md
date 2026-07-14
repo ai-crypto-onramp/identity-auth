@@ -196,7 +196,7 @@ the non-functional requirements.
 
 ## Stage 10: Tests, Coverage & CI/Docker Hardening
 
-**Goal:** Reach high test coverage, race-clean suite, and harden Docker + CI per
+**Goal:** Reach a race-clean suite, and harden Docker + CI per
 the README local development and CI guidance.
 
 **Tasks:**
