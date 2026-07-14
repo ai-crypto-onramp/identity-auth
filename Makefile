@@ -13,7 +13,7 @@ run:
 	go run ./cmd/identity-auth
 
 lint:
-	go vet ./cmd/... ./internal/...
+	golangci-lint run
 
 docker-build:
 	docker build -t ai-crypto-onramp/identity-auth .
