@@ -6,3 +6,5 @@ vendor/
 *.test
 coverage.out
 /identity-auth
+/gen-rbac-bundle
+/migrate

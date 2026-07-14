@@ -17,7 +17,7 @@
 //
 //	TEST_DB_URL  — Postgres DSN, e.g. postgres://user:pass@localhost:5432/identity_auth_test?sslmode=disable
 //	TEST_REDIS_URL — Redis URL, e.g. redis://localhost:6379/0
-package main
+package internal
 
 import (
 	"context"

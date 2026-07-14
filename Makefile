@@ -1,19 +1,19 @@
 .PHONY: build test test-integration run lint docker-build docker-run migrate-up migrate-down gen-rbac-bundle clean
 
 build:
-	go build -o bin/server .
+	go build -o bin/server ./cmd/identity-auth
 
 test:
-	go test ./... -race -coverprofile=coverage.out -coverpkg=./...
+	go test ./cmd/... ./internal/... -race -coverprofile=coverage.out -coverpkg=./cmd/...,./internal/...
 
 test-integration:
-	go test -tags=integration -race ./...
+	go test -tags=integration -race ./cmd/... ./internal/...
 
 run:
-	go run .
+	go run ./cmd/identity-auth
 
 lint:
-	go vet ./...
+	go vet ./cmd/... ./internal/...
 
 docker-build:
 	docker build -t ai-crypto-onramp/identity-auth .

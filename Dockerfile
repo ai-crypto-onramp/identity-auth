@@ -5,7 +5,7 @@ WORKDIR /src
 COPY go.mod go.sum ./
 RUN go mod download
 COPY . .
-RUN CGO_ENABLED=0 GOOS=linux go build -o /server . && \
+RUN CGO_ENABLED=0 GOOS=linux go build -o /server ./cmd/identity-auth && \
     CGO_ENABLED=0 GOOS=linux go build -o /migrate ./cmd/migrate
 
 FROM alpine:3.20@sha256:d9e853e87e55526f6b2917df91a2115c36dd7c696a35be12163d44e6e2a4b6bc

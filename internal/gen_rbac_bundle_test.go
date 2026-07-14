@@ -1,4 +1,4 @@
-package main
+package internal
 
 import (
 	"os"
@@ -18,6 +18,7 @@ func TestGenRBACBundleMatches(t *testing.T) {
 	tmp := t.TempDir()
 	out := filepath.Join(tmp, "rbac.rego")
 	cmd := exec.Command("go", "run", "./cmd/gen-rbac-bundle", "-out", out)
+	cmd.Dir = ".."
 	if err := cmd.Run(); err != nil {
 		t.Fatalf("go run gen-rbac-bundle: %v", err)
 	}
