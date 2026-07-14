@@ -1,4 +1,4 @@
-.PHONY: build test test-integration run lint docker-build docker-run migrate-up migrate-down gen-rbac-bundle clean
+.PHONY: build test test-integration run lint cover docker-build docker-run migrate-up migrate-down gen-rbac-bundle clean
 
 build:
 	go build -o bin/server ./cmd/identity-auth
@@ -14,6 +14,9 @@ run:
 
 lint:
 	golangci-lint run
+
+cover: test
+	go tool cover -func=coverage.out | tail -1
 
 docker-build:
 	docker build -t ai-crypto-onramp/identity-auth .
