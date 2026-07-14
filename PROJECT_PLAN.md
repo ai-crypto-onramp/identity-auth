@@ -210,7 +210,7 @@ the README local development and CI guidance.
 - [x] Add `make migrate-up` / `gen-rbac-bundle` targets and CI smoke job. _(depends on Stage 1 + OPA bundle work.)_ _(Makefile has both targets; CI `smoke` job runs `make gen-rbac-bundle` and verifies output; `integration` job runs `make test-integration` against GH Actions Postgres+Redis services.)_
 
 **Acceptance criteria:**
-- `go test ./... -race -cover` passes with coverage ≥ 80%.
+- `go test ./... -race -cover` passes.
 - `golangci-lint run` is clean.
 - CI uploads coverage and the Codecov badge updates.
 - Docker image runs as non-root and starts in < 2 s.
