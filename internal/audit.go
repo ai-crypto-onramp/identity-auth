@@ -17,7 +17,7 @@ func (s *store) RecordAudit(events ...*AuditEvent) {
 			continue
 		}
 		if ev.ID == "" {
-			ev.ID = randID(12)
+			ev.ID = randID()
 		}
 		if ev.CreatedAt.IsZero() {
 			ev.CreatedAt = time.Now()

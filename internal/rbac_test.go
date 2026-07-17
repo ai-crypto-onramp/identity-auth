@@ -40,7 +40,7 @@ func TestRoleBindingsCRUD(t *testing.T) {
 	uid := a.store.UserByEmail("rbac@example.com").ID
 	// Create binding.
 	rec := doRequest(t, h, http.MethodPost, "/v1/role-bindings", map[string]string{
-		"subject_type": "user", "subject_id": uid, "role": "partner_admin",
+		"subject_type": "USER", "subject_id": uid, "role": "partner_admin",
 		"scope_type": "partner", "scope_id": "partner-1",
 	}, tok)
 	assertStatus(t, rec, http.StatusCreated)
@@ -50,7 +50,7 @@ func TestRoleBindingsCRUD(t *testing.T) {
 		t.Errorf("role mismatch: %q", binding.Role)
 	}
 	// List bindings.
-	rec = doRequest(t, h, http.MethodGet, "/v1/role-bindings?subject_type=user&subject_id="+uid, nil, tok)
+	rec = doRequest(t, h, http.MethodGet, "/v1/role-bindings?subject_type=USER&subject_id="+uid, nil, tok)
 	assertStatus(t, rec, http.StatusOK)
 	var list []*RoleBinding
 	decodeBody(t, rec, &list)
@@ -106,7 +106,7 @@ func TestAuthzAllowAndDeny(t *testing.T) {
 		t.Errorf("expected reason entries")
 	}
 	// Grant partner_admin → keys:create allowed.
-	_, err := a.store.AddBinding("user", uid, "partner_admin", "partner", "partner-1")
+	_, err := a.store.AddBinding("USER", uid, "partner_admin", "partner", "partner-1")
 	if err != nil {
 		t.Fatalf("add binding: %v", err)
 	}
@@ -125,7 +125,7 @@ func TestAuthzAdminWildcard(t *testing.T) {
 	registerAndVerify(t, a, "admin@example.com", "S3cretPass!")
 	tok := loginAndGetToken(t, a, "admin@example.com", "S3cretPass!", "")
 	uid := a.store.UserByEmail("admin@example.com").ID
-	_, _ = a.store.AddBinding("user", uid, "admin", "", "")
+	_, _ = a.store.AddBinding("USER", uid, "admin", "", "")
 	rec := doRequest(t, h, http.MethodPost, "/v1/authz", map[string]string{
 		"subject": uid, "action": "anything", "resource": "any",
 	}, tok)

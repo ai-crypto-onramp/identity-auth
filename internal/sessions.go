@@ -128,7 +128,7 @@ func (s *store) Login(email, password, mfaCode string, cfg *Config) (*LoginResul
 
 // issueSession creates a new session, access JWT, and refresh token.
 func (s *store) issueSession(userID string, cfg *Config) (*LoginResult, *AuditEvent, error) {
-	sid := randID(12)
+	sid := randID()
 	refresh := randomToken(32)
 	refreshHash := sha256Hex(refresh)
 	now := time.Now()
@@ -162,7 +162,7 @@ func (s *store) issueSession(userID string, cfg *Config) (*LoginResult, *AuditEv
 		return nil, nil, err
 	}
 	ev := AuditEvent{
-		ID:        randID(12),
+		ID:        randID(),
 		Type:      "auth.login",
 		SubjectID: userID,
 		SessionID: sid,
@@ -211,7 +211,7 @@ func (s *store) Refresh(refreshToken string, cfg *Config) (*LoginResult, *AuditE
 	s.sessionsByRT[newHash] = sid
 	s.refreshChain[hash] = sid
 	ev := AuditEvent{
-		ID:        randID(12),
+		ID:        randID(),
 		Type:      "auth.refresh",
 		SubjectID: userID,
 		SessionID: sid,
@@ -249,7 +249,7 @@ func (s *store) Logout(sessionID string) (*AuditEvent, error) {
 	sess.RevokedAt = &now
 	delete(s.sessionsByRT, sess.RefreshTokenHash)
 	ev := AuditEvent{
-		ID:        randID(12),
+		ID:        randID(),
 		Type:      "auth.logout",
 		SubjectID: sess.UserID,
 		SessionID: sessionID,

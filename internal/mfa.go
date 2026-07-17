@@ -34,11 +34,11 @@ func (s *store) EnrollMFA(userID string, cfg *Config) (*MFAEnrollResult, *AuditE
 	if u.Status == StatusClosed {
 		return nil, nil, ErrAccountClosed
 	}
-	id := randID(12)
+	id := randID()
 	f := &MFAFactor{
 		ID:        id,
 		UserID:    userID,
-		Type:      "totp",
+		Type:      "TOTP",
 		Secret:    secret,
 		Confirmed: false,
 		CreatedAt: time.Now(),
@@ -46,7 +46,7 @@ func (s *store) EnrollMFA(userID string, cfg *Config) (*MFAEnrollResult, *AuditE
 	s.mfaFactors[id] = f
 	s.mfaByUser[userID] = append(s.mfaByUser[userID], id)
 	ev := AuditEvent{
-		ID:        randID(12),
+		ID:        randID(),
 		Type:      "auth.mfa.enroll",
 		SubjectID: userID,
 		Metadata:  map[string]any{"factor_id": id},
@@ -87,7 +87,7 @@ func (s *store) VerifyMFA(userID, code1, code2 string) (*AuditEvent, error) {
 	}
 	f.Confirmed = true
 	ev := AuditEvent{
-		ID:        randID(12),
+		ID:        randID(),
 		Type:      "auth.mfa.verify",
 		SubjectID: userID,
 		Metadata:  map[string]any{"factor_id": f.ID},
@@ -160,7 +160,7 @@ func (s *store) GenerateRecoveryCodes(userID string) ([]string, *AuditEvent, err
 		c := randomToken(8)
 		codes = append(codes, c)
 		hashed = append(hashed, &RecoveryCode{
-			ID:     randID(8),
+			ID:     randID(),
 			UserID: userID,
 			Hash:   sha256Hex(c),
 		})
@@ -180,7 +180,7 @@ func (s *store) GenerateRecoveryCodes(userID string) ([]string, *AuditEvent, err
 		s.recoveryCodes[rc.ID] = rc
 	}
 	ev := AuditEvent{
-		ID:        randID(12),
+		ID:        randID(),
 		Type:      "auth.mfa.recovery",
 		SubjectID: userID,
 		Metadata:  map[string]any{"count": len(codes)},
@@ -201,7 +201,7 @@ func (s *store) DisableFactor(userID, factorID string) (*AuditEvent, error) {
 	f.DisabledAt = &now
 	f.Confirmed = false
 	ev := AuditEvent{
-		ID:        randID(12),
+		ID:        randID(),
 		Type:      "auth.mfa.disable",
 		SubjectID: userID,
 		Metadata:  map[string]any{"factor_id": factorID},

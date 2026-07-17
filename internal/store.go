@@ -15,11 +15,11 @@ import (
 type UserStatus string
 
 const (
-	StatusPending   UserStatus = "pending"
-	StatusActive    UserStatus = "active"
-	StatusLocked    UserStatus = "locked"
-	StatusSuspended UserStatus = "suspended"
-	StatusClosed    UserStatus = "closed"
+	StatusPending   UserStatus = "PENDING"
+	StatusActive    UserStatus = "ACTIVE"
+	StatusLocked    UserStatus = "LOCKED"
+	StatusSuspended UserStatus = "SUSPENDED"
+	StatusClosed    UserStatus = "CLOSED"
 )
 
 // User is the in-memory user record.
@@ -49,7 +49,7 @@ type Session struct {
 type MFAFactor struct {
 	ID        string
 	UserID    string
-	Type      string // "totp"
+	Type      string // "TOTP"
 	Secret    string
 	Confirmed bool
 	CreatedAt time.Time
@@ -84,7 +84,7 @@ type APIKey struct {
 // RoleBinding associates a subject with a role.
 type RoleBinding struct {
 	ID         string
-	SubjectType string // "user" or "api_key"
+	SubjectType string // "USER" or "API_KEY"
 	SubjectID  string
 	Role       string
 	ScopeType  string // "partner" or ""

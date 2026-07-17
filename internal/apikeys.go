@@ -39,7 +39,7 @@ func (s *store) CreateAPIKey(partnerID string, scopes, ipAllowlist []string, exp
 	if err != nil {
 		return nil, nil, err
 	}
-	id := randID(12)
+	id := randID()
 	now := time.Now()
 	k := &APIKey{
 		ID:          id,
@@ -56,7 +56,7 @@ func (s *store) CreateAPIKey(partnerID string, scopes, ipAllowlist []string, exp
 	s.apiKeysByHash[k.KeyHash] = id
 	s.mu.Unlock()
 	ev := AuditEvent{
-		ID:        randID(12),
+		ID:        randID(),
 		Type:      "auth.key.create",
 		SubjectID: partnerID,
 		Metadata:  map[string]any{"key_id": id, "prefix": prefix},
@@ -118,7 +118,7 @@ func (s *store) RotateAPIKey(id string) (*APIKeyResult, *AuditEvent, error) {
 		s.apiKeysByHash[k.PreviousKeyHash] = id
 	}
 	ev := AuditEvent{
-		ID:        randID(12),
+		ID:        randID(),
 		Type:      "auth.key.rotate",
 		SubjectID: k.PartnerID,
 		Metadata:  map[string]any{"key_id": id, "prefix": prefix},
@@ -154,7 +154,7 @@ func (s *store) RevokeAPIKey(id string) (*AuditEvent, error) {
 		delete(s.apiKeysByHash, k.PreviousKeyHash)
 	}
 	ev := AuditEvent{
-		ID:        randID(12),
+		ID:        randID(),
 		Type:      "auth.key.revoke",
 		SubjectID: k.PartnerID,
 		Metadata:  map[string]any{"key_id": id},

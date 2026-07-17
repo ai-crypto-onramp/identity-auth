@@ -69,7 +69,7 @@ func (s *store) CreateUser(email, password string) (*User, string, error) {
 	}
 	now := time.Now()
 	u := &User{
-		ID:           randID(12),
+		ID:           randID(),
 		Email:        email,
 		PasswordHash: hash,
 		Status:       StatusPending,

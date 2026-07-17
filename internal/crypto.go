@@ -12,6 +12,8 @@ import (
 	"errors"
 	"fmt"
 	"time"
+
+	"github.com/google/uuid"
 )
 
 // ---------------------------------------------------------------------------
@@ -19,13 +21,10 @@ import (
 // HMAC-SHA256 JWT, RFC 6238 TOTP.
 // ---------------------------------------------------------------------------
 
-// randID generates a random hex-encoded ID of nbytes random bytes.
-func randID(nbytes int) string {
-	b := make([]byte, nbytes)
-	if _, err := rand.Read(b); err != nil {
-		panic("crypto/rand failed: " + err.Error())
-	}
-	return hex.EncodeToString(b)
+// randID generates a new app-side UUIDv7 primary key.
+func randID() string {
+	id, _ := uuid.NewV7()
+	return id.String()
 }
 
 // randomToken returns a URL-safe base64 random string of nbytes entropy.

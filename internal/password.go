@@ -24,7 +24,7 @@ func (s *store) PasswordResetInit(email string) (string, *AuditEvent, error) {
 	}
 	token := randomToken(24)
 	hash := sha256Hex(token)
-	id := randID(12)
+	id := randID()
 	pr := &PasswordReset{
 		ID:        id,
 		UserID:    u.ID,
@@ -36,7 +36,7 @@ func (s *store) PasswordResetInit(email string) (string, *AuditEvent, error) {
 	s.resetsByToken[hash] = id
 	s.mu.Unlock()
 	ev := AuditEvent{
-		ID:        randID(12),
+		ID:        randID(),
 		Type:      "auth.password.reset.init",
 		SubjectID: u.ID,
 		Metadata:  map[string]any{},
@@ -84,7 +84,7 @@ func (s *store) PasswordResetConfirm(token, newPassword, mfaCode string) (*Audit
 	s.RevokeAllSessionsForUser(userID)
 	s.resetLockout(userID)
 	ev := AuditEvent{
-		ID:        randID(12),
+		ID:        randID(),
 		Type:      "auth.password.reset.confirm",
 		SubjectID: userID,
 		Metadata:  map[string]any{},

@@ -77,7 +77,7 @@ func TestVerifyUserDirect(t *testing.T) {
 		t.Fatalf("verify: %v", err)
 	}
 	if s.users[u.ID].Status != StatusActive {
-		t.Errorf("status: want active got %q", s.users[u.ID].Status)
+		t.Errorf("status: want ACTIVE got %q", s.users[u.ID].Status)
 	}
 	// Verify again should fail (not pending).
 	if err := s.VerifyUser(u.ID); err != ErrInvalidToken {
@@ -329,10 +329,10 @@ func TestRevokeAPIKeyUnknown(t *testing.T) {
 
 func TestAddBindingInvalidRole(t *testing.T) {
 	s := newStore()
-	if _, err := s.AddBinding("user", "x", "nope", "", ""); err != ErrBadRequest {
+	if _, err := s.AddBinding("USER", "x", "nope", "", ""); err != ErrBadRequest {
 		t.Errorf("want ErrBadRequest got %v", err)
 	}
-	if _, err := s.AddBinding("user", "", "admin", "", ""); err != ErrBadRequest {
+	if _, err := s.AddBinding("USER", "", "admin", "", ""); err != ErrBadRequest {
 		t.Errorf("want ErrBadRequest for empty subject got %v", err)
 	}
 }

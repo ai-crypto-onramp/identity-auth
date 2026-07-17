@@ -79,7 +79,7 @@ func (s *dbstore) CreateUser(email, password string) (*User, string, error) {
 	}
 	defer tx.Rollback(ctx) //nolint:errcheck
 	now := time.Now()
-	id := randID(12)
+	id := randID()
 	if _, err := tx.Exec(ctx,
 		"INSERT INTO users(id, email, password_hash, status, created_at, updated_at) VALUES($1,$2,$3,$4,$5,$5)",
 		id, email, hash, string(StatusPending), now); err != nil {
@@ -114,7 +114,7 @@ func (s *dbstore) VerifyUserToken(token string) (*User, error) {
 		return nil, err
 	}
 	tag, err := tx.Exec(ctx,
-		"UPDATE users SET status='active', updated_at=now() WHERE id=$1 AND status='pending'", uid)
+		"UPDATE users SET status='ACTIVE', updated_at=now() WHERE id=$1 AND status='PENDING'", uid)
 	if err != nil {
 		return nil, err
 	}
@@ -130,7 +130,7 @@ func (s *dbstore) VerifyUserToken(token string) (*User, error) {
 func (s *dbstore) VerifyUser(uid string) error {
 	ctx := context.Background()
 	tag, err := s.pool.Exec(ctx,
-		"UPDATE users SET status='active', updated_at=now() WHERE id=$1 AND status='pending'", uid)
+		"UPDATE users SET status='ACTIVE', updated_at=now() WHERE id=$1 AND status='PENDING'", uid)
 	if err != nil {
 		return err
 	}
@@ -211,7 +211,7 @@ func (s *dbstore) SoftDeleteUser(id string) error {
 	}
 	defer tx.Rollback(ctx) //nolint:errcheck
 	tag, err := tx.Exec(ctx,
-		"UPDATE users SET status='closed', updated_at=now(), closed_at=now() WHERE id=$1", id)
+		"UPDATE users SET status='CLOSED', updated_at=now(), closed_at=now() WHERE id=$1", id)
 	if err != nil {
 		return err
 	}
@@ -300,7 +300,7 @@ func (s *dbstore) Login(email, password, mfaCode string, cfg *Config) (*LoginRes
 
 func (s *dbstore) issueSession(userID string, cfg *Config) (*LoginResult, *AuditEvent, error) {
 	ctx := context.Background()
-	sid := randID(12)
+	sid := randID()
 	refresh := randomToken(32)
 	refreshHash := sha256Hex(refresh)
 	now := time.Now()
@@ -328,7 +328,7 @@ func (s *dbstore) issueSession(userID string, cfg *Config) (*LoginResult, *Audit
 		return nil, nil, err
 	}
 	ev := AuditEvent{
-		ID:        randID(12),
+		ID:        randID(),
 		Type:      "auth.login",
 		SubjectID: userID,
 		SessionID: sid,
@@ -401,7 +401,7 @@ func (s *dbstore) Refresh(refreshToken string, cfg *Config) (*LoginResult, *Audi
 		return nil, nil, err
 	}
 	ev := AuditEvent{
-		ID:        randID(12),
+		ID:        randID(),
 		Type:      "auth.refresh",
 		SubjectID: userID,
 		SessionID: sid,
@@ -439,7 +439,7 @@ func (s *dbstore) Logout(sessionID string) (*AuditEvent, error) {
 		return nil, err
 	}
 	return &AuditEvent{
-		ID: randID(12), Type: "auth.logout", SubjectID: userID, SessionID: sessionID,
+		ID: randID(), Type: "auth.logout", SubjectID: userID, SessionID: sessionID,
 		Metadata: map[string]any{}, CreatedAt: now,
 	}, nil
 }
@@ -577,15 +577,15 @@ func (s *dbstore) EnrollMFA(userID string, cfg *Config) (*MFAEnrollResult, *Audi
 	if err != nil {
 		return nil, nil, err
 	}
-	id := randID(12)
+	id := randID()
 	now := time.Now()
 	if _, err := s.pool.Exec(ctx,
-		"INSERT INTO mfa_factors(id, user_id, type, secret_encrypted, confirmed, created_at) VALUES($1,$2,'totp',$3,false,$4)",
+		"INSERT INTO mfa_factors(id, user_id, type, secret_encrypted, confirmed, created_at) VALUES($1,$2,'TOTP',$3,false,$4)",
 		id, userID, []byte(encSecret), now); err != nil {
 		return nil, nil, err
 	}
 	ev := AuditEvent{
-		ID: randID(12), Type: "auth.mfa.enroll", SubjectID: userID,
+		ID: randID(), Type: "auth.mfa.enroll", SubjectID: userID,
 		Metadata: map[string]any{"factor_id": id}, CreatedAt: now,
 	}
 	u := s.UserByID(userID)
@@ -633,7 +633,7 @@ func (s *dbstore) VerifyMFA(userID, code1, code2 string) (*AuditEvent, error) {
 		return nil, err
 	}
 	return &AuditEvent{
-		ID: randID(12), Type: "auth.mfa.verify", SubjectID: userID,
+		ID: randID(), Type: "auth.mfa.verify", SubjectID: userID,
 		Metadata: map[string]any{"factor_id": id}, CreatedAt: now,
 	}, nil
 }
@@ -712,7 +712,7 @@ func (s *dbstore) GenerateRecoveryCodes(userID string) ([]string, *AuditEvent, e
 		codes = append(codes, c)
 		if _, err := tx.Exec(ctx,
 			"INSERT INTO mfa_recovery_codes(id, user_id, code_hash) VALUES($1,$2,$3)",
-			randID(8), userID, sha256Hex(c)); err != nil {
+			randID(), userID, sha256Hex(c)); err != nil {
 			return nil, nil, err
 		}
 	}
@@ -720,7 +720,7 @@ func (s *dbstore) GenerateRecoveryCodes(userID string) ([]string, *AuditEvent, e
 		return nil, nil, err
 	}
 	ev := AuditEvent{
-		ID: randID(12), Type: "auth.mfa.recovery", SubjectID: userID,
+		ID: randID(), Type: "auth.mfa.recovery", SubjectID: userID,
 		Metadata: map[string]any{"count": len(codes)}, CreatedAt: now,
 	}
 	return codes, &ev, nil
@@ -753,7 +753,7 @@ func (s *dbstore) DisableFactor(userID, factorID string) (*AuditEvent, error) {
 		return nil, err
 	}
 	return &AuditEvent{
-		ID: randID(12), Type: "auth.mfa.disable", SubjectID: userID,
+		ID: randID(), Type: "auth.mfa.disable", SubjectID: userID,
 		Metadata: map[string]any{"factor_id": factorID}, CreatedAt: now,
 	}, nil
 }
@@ -770,7 +770,7 @@ func (s *dbstore) CreateAPIKey(partnerID string, scopes, ipAllowlist []string, e
 	if err != nil {
 		return nil, nil, err
 	}
-	id := randID(12)
+	id := randID()
 	now := time.Now()
 	ctx := context.Background()
 	if _, err := s.pool.Exec(ctx,
@@ -781,7 +781,7 @@ func (s *dbstore) CreateAPIKey(partnerID string, scopes, ipAllowlist []string, e
 		return nil, nil, err
 	}
 	ev := AuditEvent{
-		ID: randID(12), Type: "auth.key.create", SubjectID: partnerID,
+		ID: randID(), Type: "auth.key.create", SubjectID: partnerID,
 		Metadata: map[string]any{"key_id": id, "prefix": prefix}, CreatedAt: now,
 	}
 	return &APIKeyResult{
@@ -856,7 +856,7 @@ func (s *dbstore) RotateAPIKey(id string) (*APIKeyResult, *AuditEvent, error) {
 	scopes := parseStrings(scopesJSON)
 	allow := parseStrings(allowJSON)
 	ev := AuditEvent{
-		ID: randID(12), Type: "auth.key.rotate", SubjectID: partnerID,
+		ID: randID(), Type: "auth.key.rotate", SubjectID: partnerID,
 		Metadata: map[string]any{"key_id": id, "prefix": prefix}, CreatedAt: now,
 	}
 	return &APIKeyResult{
@@ -895,7 +895,7 @@ func (s *dbstore) RevokeAPIKey(id string) (*AuditEvent, error) {
 		return nil, err
 	}
 	return &AuditEvent{
-		ID: randID(12), Type: "auth.key.revoke", SubjectID: partnerID,
+		ID: randID(), Type: "auth.key.revoke", SubjectID: partnerID,
 		Metadata: map[string]any{"key_id": id}, CreatedAt: now,
 	}, nil
 }
@@ -926,7 +926,7 @@ func (s *dbstore) AddBinding(subjectType, subjectID, role, scopeType, scopeID st
 		return nil, ErrBadRequest
 	}
 	ctx := context.Background()
-	id := randID(12)
+	id := randID()
 	now := time.Now()
 	if _, err := s.pool.Exec(ctx,
 		`INSERT INTO role_bindings(id, subject_type, subject_id, role, scope_type, scope_id, created_at)
@@ -1011,7 +1011,7 @@ func (s *dbstore) Authorize(subjectID, action, resource string) (AuthzResult, *A
 	var ev *AuditEvent
 	if !allowed {
 		ev = &AuditEvent{
-			ID: randID(12), Type: "auth.authz.deny", SubjectID: subjectID,
+			ID: randID(), Type: "auth.authz.deny", SubjectID: subjectID,
 			Metadata: map[string]any{"action": action, "resource": resource},
 			CreatedAt: time.Now(),
 		}
@@ -1032,7 +1032,7 @@ func (s *dbstore) PasswordResetInit(email string) (string, *AuditEvent, error) {
 		return "", nil, ErrAccountClosed
 	}
 	token := randomToken(24)
-	id := randID(12)
+	id := randID()
 	now := time.Now()
 	ctx := context.Background()
 	if _, err := s.pool.Exec(ctx,
@@ -1041,7 +1041,7 @@ func (s *dbstore) PasswordResetInit(email string) (string, *AuditEvent, error) {
 		return "", nil, err
 	}
 	ev := AuditEvent{
-		ID: randID(12), Type: "auth.password.reset.init", SubjectID: u.ID,
+		ID: randID(), Type: "auth.password.reset.init", SubjectID: u.ID,
 		Metadata: map[string]any{}, CreatedAt: now,
 	}
 	return token, &ev, nil
@@ -1094,7 +1094,7 @@ func (s *dbstore) PasswordResetConfirm(token, newPassword, mfaCode string) (*Aud
 	s.RevokeAllSessionsForUser(userID)
 	s.resetLockout(userID)
 	return &AuditEvent{
-		ID: randID(12), Type: "auth.password.reset.confirm", SubjectID: userID,
+		ID: randID(), Type: "auth.password.reset.confirm", SubjectID: userID,
 		Metadata: map[string]any{}, CreatedAt: now,
 	}, nil
 }
@@ -1110,7 +1110,7 @@ func (s *dbstore) RecordAudit(events ...*AuditEvent) {
 			continue
 		}
 		if ev.ID == "" {
-			ev.ID = randID(12)
+			ev.ID = randID()
 		}
 		if ev.CreatedAt.IsZero() {
 			ev.CreatedAt = time.Now()

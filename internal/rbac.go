@@ -65,7 +65,7 @@ func (s *store) AddBinding(subjectType, subjectID, role, scopeType, scopeID stri
 		return nil, ErrBadRequest
 	}
 	b := &RoleBinding{
-		ID:          randID(12),
+		ID:          randID(),
 		SubjectType: subjectType,
 		SubjectID:   subjectID,
 		Role:        role,
@@ -152,7 +152,7 @@ func (s *store) Authorize(subjectID, action, resource string) (AuthzResult, *Aud
 	var ev *AuditEvent
 	if !allowed {
 		ev = &AuditEvent{
-			ID:        randID(12),
+			ID:        randID(),
 			Type:      "auth.authz.deny",
 			SubjectID: subjectID,
 			Metadata:  map[string]any{"action": action, "resource": resource},

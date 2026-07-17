@@ -76,8 +76,8 @@ func TestRegistrationSuccess(t *testing.T) {
 	if res.Email != "alice@example.com" {
 		t.Errorf("email mismatch: %q", res.Email)
 	}
-	if res.Status != "pending" {
-		t.Errorf("status: want pending got %q", res.Status)
+	if res.Status != "PENDING" {
+		t.Errorf("status: want PENDING got %q", res.Status)
 	}
 	if res.Token == "" {
 		t.Errorf("missing verification token")
@@ -134,8 +134,8 @@ func TestEmailVerification(t *testing.T) {
 		Status string `json:"status"`
 	}
 	decodeBody(t, rec, &me)
-	if me.Status != "active" {
-		t.Errorf("status: want active got %q", me.Status)
+	if me.Status != "ACTIVE" {
+		t.Errorf("status: want ACTIVE got %q", me.Status)
 	}
 }
 

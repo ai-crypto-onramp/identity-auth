@@ -224,7 +224,7 @@ func TestAuthzMetricsIncrement(t *testing.T) {
 	tok := loginAndGetToken(t, a, "authz-metrics@example.com", "S3cretPass!", "")
 	// Add a binding so authz allows.
 	rec := doRequest(t, h, http.MethodPost, "/v1/role-bindings", map[string]string{
-		"subject_type": "user", "subject_id": uid, "role": "admin",
+		"subject_type": "USER", "subject_id": uid, "role": "admin",
 	}, tok)
 	assertStatus(t, rec, http.StatusCreated)
 	beforeAllow := globalMetrics.authzAllow.Load()
