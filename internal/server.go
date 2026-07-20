@@ -48,16 +48,21 @@ type API struct {
 }
 
 // newAPI builds an API with the given config. When DB_URL is set it opens a
-// pgx pool, runs migrations, and uses the DB-backed store; otherwise it falls
-// back to the in-memory store.
+// pgx pool, runs migrations, and uses the DB-backed store. In DEV_MODE=1 the
+// in-memory store is allowed; in production a DB connection failure is fatal.
 func newAPI(cfg *Config) *API {
 	if cfg == nil {
 		cfg = DefaultConfig()
 	}
 	st, err := newStoreFromEnv()
 	if err != nil {
-		logger.Error("db store init failed; using in-memory", "err", err)
-		st = newStore()
+		if os.Getenv("DEV_MODE") == "1" {
+			logger.Error("db store init failed; using in-memory (DEV_MODE=1)", "err", err)
+			st = newStore()
+		} else {
+			logger.Error("db store init failed; refusing to start in production mode (set DEV_MODE=1 for local dev)", "err", err)
+			os.Exit(1)
+		}
 	}
 	return &API{store: st, cfg: cfg}
 }
@@ -68,7 +73,12 @@ func newAPI(cfg *Config) *API {
 func newStoreFromEnv() (Store, error) {
 	dsn := dbDSN()
 	if dsn == "" {
-		return newStore(), nil
+		if os.Getenv("DEV_MODE") == "1" {
+			return newStore(), nil
+		}
+		logger.Error("DB_URL not set and DEV_MODE!=1; refusing to start in production mode")
+		os.Exit(1)
+		return nil, nil
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
