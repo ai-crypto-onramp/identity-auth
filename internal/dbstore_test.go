@@ -114,7 +114,6 @@ func (f *fakePool) addRowsErr(sqlSub string, err error) *fakePool {
 	f.queryQ = append(f.queryQ, scanResult{sqlSub: sqlSub, rowsErr: err})
 	return f
 }
-func (f *fakePool) setBeginErr(err error) *fakePool { f.beginErr = err; return f }
 
 func (f *fakePool) findExec(sql string) (execResult, bool) {
 	f.mu.Lock()
