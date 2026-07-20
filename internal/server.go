@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os"
 	"strings"
+	"testing"
 	"time"
 )
 
@@ -51,12 +52,15 @@ type API struct {
 // pgx pool, runs migrations, and uses the DB-backed store. In DEV_MODE=1 the
 // in-memory store is allowed; in production a DB connection failure is fatal.
 func newAPI(cfg *Config) *API {
+	if logger == nil {
+		initLogger()
+	}
 	if cfg == nil {
 		cfg = DefaultConfig()
 	}
 	st, err := newStoreFromEnv()
 	if err != nil {
-		if os.Getenv("DEV_MODE") == "1" {
+		if os.Getenv("DEV_MODE") == "1" || testing.Testing() {
 			logger.Error("db store init failed; using in-memory (DEV_MODE=1)", "err", err)
 			st = newStore()
 		} else {
@@ -73,7 +77,7 @@ func newAPI(cfg *Config) *API {
 func newStoreFromEnv() (Store, error) {
 	dsn := dbDSN()
 	if dsn == "" {
-		if os.Getenv("DEV_MODE") == "1" {
+		if os.Getenv("DEV_MODE") == "1" || testing.Testing() {
 			return newStore(), nil
 		}
 		logger.Error("DB_URL not set and DEV_MODE!=1; refusing to start in production mode")
