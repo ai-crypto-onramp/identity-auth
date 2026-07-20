@@ -9,6 +9,7 @@ import (
 
 	"github.com/ai-crypto-onramp/identity-auth/db"
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -38,6 +39,16 @@ func migrateUp(ctx context.Context, pool *pgxpool.Pool) (int, error) {
 	return db.MigrateUp(ctx, pool)
 }
 
+// dbPool is the subset of *pgxpool.Pool that dbstore depends on. Defining it
+// as an interface allows hermetic tests to substitute a scripted fake (see
+// dbstore_test.go) without a running Postgres.
+type dbPool interface {
+	Exec(ctx context.Context, sql string, args ...any) (pgconn.CommandTag, error)
+	Query(ctx context.Context, sql string, args ...any) (pgx.Rows, error)
+	QueryRow(ctx context.Context, sql string, args ...any) pgx.Row
+	Begin(ctx context.Context) (pgx.Tx, error)
+}
+
 // newDBStore builds a DB-backed store from an open pool.
 func newDBStore(pool *pgxpool.Pool) (*dbstore, error) {
 	enc, err := db.NewEncryptorFromEnv()
@@ -49,7 +60,7 @@ func newDBStore(pool *pgxpool.Pool) (*dbstore, error) {
 
 // dbstore is the PostgreSQL-backed Store implementation.
 type dbstore struct {
-	pool *pgxpool.Pool
+	pool dbPool
 	enc  *db.Encryptor
 }
 
